@@ -3,6 +3,8 @@ using AirportCalculateDistanceApi.Models.Requests;
 using System.Text.Json;
 using AirportCalculateDistanceApi.Infrastructure.Constant;
 using GeoCoordinatePortable;
+using AirportCalculateDistanceApi.Infrastructure.ExceptionHandling;
+
 namespace AirportCalculateDistanceApi.Services
 {
     public class CalculateService : ICalculateService
@@ -16,25 +18,48 @@ namespace AirportCalculateDistanceApi.Services
 
         public async Task<BaseResponse<double>> Calculate(CalculateRequest request)
         {
+            ControlInputs(request);
             var response = new BaseResponse<double>();
-           
-            var airport1 = await GetAirport(request.FirstAirport);
-            var airport2 = await GetAirport(request.SecondAirport);
 
-            if (airport1 is null)
+            Task<ApiResponse> firstTask = GetAirport(request.FirstAirport);
+            Task<ApiResponse> secondTask = GetAirport(request.SecondAirport);
+
+             await Task.WhenAll(firstTask, secondTask);
+
+            if (firstTask is null)
             {
                 response.Errors.Add(new Infrastructure.ExceptionHandling.Error() { ErrorMessage = String.Format(ErrorCodeConstants.AirportNotFound,request.FirstAirport) });
                 return response;
             }
-            if (airport2 is null)
+            if (secondTask is null)
             {
                 response.Errors.Add(new Infrastructure.ExceptionHandling.Error() { ErrorMessage = String.Format(ErrorCodeConstants.AirportNotFound, request.SecondAirport) });
                 return response;
             }
 
-            response.Result= GetDistance(airport1.Location,airport2.Location);
+            response.Result= GetDistance(firstTask.Result.Location, secondTask.Result.Location);
             
             return response;
+        }
+
+        private void ControlInputs(CalculateRequest request)
+        {
+            if (string.IsNullOrEmpty(request.FirstAirport))
+            {
+                throw new DomainException(new Error(ErrorCodeConstants.AirportReqired));
+            }
+            if (request.FirstAirport.Length !=3)
+            {
+                throw new DomainException(new Error(ErrorCodeConstants.WrongIATAFormat));
+            }
+            if (string.IsNullOrEmpty(request.SecondAirport))
+            {
+                throw new DomainException(new Error(ErrorCodeConstants.AirportReqired));
+            }
+            if (request.SecondAirport.Length != 3)
+            {
+                throw new DomainException(new Error(ErrorCodeConstants.WrongIATAFormat));
+            }
         }
 
         public async Task<ApiResponse> GetAirport(string iata)

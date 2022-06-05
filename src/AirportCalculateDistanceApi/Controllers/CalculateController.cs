@@ -19,14 +19,20 @@ namespace AirportCalculateDistanceApi.Controllers
             _logger = logger;
             _calculateService = calculateService;
         }
-         
+
         [SwaggerResponse((int)HttpStatusCode.OK, Type = typeof(BaseResponse<double>))]
         [SwaggerResponse((int)HttpStatusCode.NotFound, Description = "No value found for requested filter.")]
         [SwaggerResponse((int)HttpStatusCode.BadRequest, Description = "Request not accepted.")]
         [SwaggerResponse((int)HttpStatusCode.Forbidden, Description = "Access not allowed.")]
         [HttpGet]
-        public async Task<IActionResult>  Get(CalculateRequest request)
+        [Route("{first}/{second}")]
+        public async Task<IActionResult>  Get(string first, string second)
         {
+            CalculateRequest request = new CalculateRequest()
+            {
+                FirstAirport = first,
+                SecondAirport = second
+            };
             var response = await _calculateService.Calculate(request);
 
 
